@@ -364,7 +364,7 @@ def create_user_messages(processed_data: List[Dict[str, str]]) -> List[Dict]:
     for i, record in enumerate(processed_data, 1):
         # Clean and validate data
         student_answer = record['jawapan_pelajar'].strip()
-        max_score = record['markah_penuh'].strip()
+        max_score = int(float(max_score))
         exam_schema = record['skema_jawapan'].strip()
         question_text = record['text_soalan'].strip()
 
@@ -491,14 +491,12 @@ def process_test_data(test_data: List[Dict]) -> List[Dict]:
 
         try:
             # Preprocess the user input
-            user_msg, weight, max_score = preprocess_user_input(user_message_data)
-            logger.info(f'After preprocessing: {user_msg}')
+            # user_msg, weight, max_score = preprocess_user_input(user_message_data)
+            # logger.info(f'After preprocessing: {user_msg}')
 
             # Create API payload
             payload = {
-                "student_answer": user_msg.split("student_answer_input: ")[1].split(";")[0].strip(),
-                "exam_schema": user_msg.split("exam_scheme_input: ")[1].split(";")[0].strip(),
-                "max_score": max_score,
+                 "user_message": user_message_data  # Send raw user_message_data directly
             }
 
             # Add keyword if present
@@ -506,11 +504,17 @@ def process_test_data(test_data: List[Dict]) -> List[Dict]:
                 payload["keyword"] = "senaraikan"
 
             # Call API
-            response = call_marking_api(payload)
+            response = call_marking_api(payload) # API handles preprocessing
+            processed_response = json.loads(response['result'])
 
-            if "error" not in response:
-                # Post-process the response
-                processed_response = post_process_marks(response, weight, max_score)
+            if "error" not in response and "result" in response:
+                # Parse the JSON result from API response
+                processed_response = json.loads(response['result'])
+
+                # Use preprocessing only for Excel export calculations
+                user_msg, weight, max_score = preprocess_user_input(user_message_data)
+                processed_response = post_process_marks(processed_response, weight, max_score)
+
 
                 logger.info("============================================")
                 logger.info(f'Input: {user_message_data}')
